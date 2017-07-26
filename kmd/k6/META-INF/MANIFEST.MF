@@ -1,4 +1,0 @@
-Manifest-Version: 1.0
-Class-Path: fig.jar
-Main-Class: src.main.java2.Test
-

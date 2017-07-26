@@ -1,4 +1,4 @@
-package java;
+package src.main.java2;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -15,11 +15,13 @@ import java.util.concurrent.ConcurrentHashMap;
 public class LoadData {
     private HashMap<String ,Integer> s_i_map = null;
     private HashMap<Integer ,String> i_s_map = null;
+    private HashMap<String ,String> s_f_map = null;
     ConcurrentHashMap<Integer,HashMap<Integer,Double>> sparse_mat = null;
     public LoadData(){
         s_i_map = new HashMap <>();
         i_s_map = new HashMap <>();
         sparse_mat = new ConcurrentHashMap <>();
+        s_f_map = new HashMap <>();
     }
     public boolean buildSentencesIndexMap(String file) throws Exception{
         File rf = new File(file);
@@ -36,10 +38,29 @@ public class LoadData {
         }
         return true;
     }
+    public boolean buildSentencesLabelMap(String file) throws Exception{
+        File rf = new File(file);
+        if(!rf.isFile()){
+            System.err.println(file+" is invalid!");
+            System.exit(0);
+            return false;
+        }
+        String line = "";
+        BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(rf),"utf-8"));
+        while((line = br.readLine())!= null){
+            String[] str = line.split("\t");
+            if(str.length!=2)
+                System.err.println("wrong labels");
+            if(!s_f_map.containsKey(line))
+                this.s_f_map.put(str[0],str[1]);
+        }
+        return true;
+    }
+
     public ConcurrentHashMap<Integer,HashMap<Integer,Double>> getSparseMat(){
         return  this.sparse_mat;
     }
-    public boolean buildSentTopNMatMap(String topN_file,HashMap<String,Integer> s_i_map) throws Exception{
+    public boolean buildSentTopNMatMap(String topN_file,HashMap<String,Integer> s_i_map,Integer Knn) throws Exception{
 
         File rf = new File(topN_file);
         if(!rf.isFile()){
@@ -57,7 +78,7 @@ public class LoadData {
             //System.out.println(str_list[0]);
 
             i_topN = new HashMap <>();
-            for(int i =1;i<str_list.length;i++){
+            for(int i =1;i<str_list.length&&i<=Knn;i++){
                 String[] tmp = str_list[i].split(":");
 
                 if(!s_i_map.containsKey(tmp[0])){
@@ -72,8 +93,8 @@ public class LoadData {
                 System.err.println("0 error");
             }
 
-            if(i_topN.size()!=200 || str_list.length != 201)
-                System.out.println(str_list.length);
+            //if(i_topN.size()!=300 || str_list.length != 301);
+                //System.out.println(str_list.length);
             this.sparse_mat.put(list0_i,i_topN);
         }
         return true;
@@ -93,6 +114,9 @@ public class LoadData {
             this.i_s_map.put(ind, sent);
         }
         return this.i_s_map;
+    }
+    public HashMap<String,String> getSentencesLabelMap(){
+        return s_f_map;
     }
     public boolean buildSentencesIndexMap(List<String> list){
         if(list.size() == 0){

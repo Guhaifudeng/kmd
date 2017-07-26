@@ -1,4 +1,4 @@
-package java;
+package src.main.java2;
 
 /**
  * Created by yishuihan on 17-6-21.

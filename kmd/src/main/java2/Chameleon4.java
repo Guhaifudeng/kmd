@@ -66,7 +66,7 @@ public class Chameleon4 {
         //引入sent top_n map
         //设置超参数
         //k=60
-        Integer knn = 150;
+        Integer knn = 80;
         loadData.buildSentTopNMatMap(topN_file, s_i_map,knn);
         ConcurrentHashMap<Integer, HashMap <Integer, Double>> sparse_mat = loadData.getSparseMat();
         //System.out.println(s_i_map.size());
@@ -79,7 +79,7 @@ public class Chameleon4 {
         ChameleonTool chameleonTool = new ChameleonTool(sparse_mat, set_s);
         //第一阶段 构建最小簇－初始化
         //第一阶段　设置超参数
-        Double threshold = 0.9;
+        Double threshold = 0.8;
         Double miss_value = -1.0;
         Integer min_cluster_max_num = 20;
         Boolean use_min_cluster_max_num = true;
@@ -97,13 +97,15 @@ public class Chameleon4 {
         HashSet<Integer> point_flag = new HashSet<>();
         //第二阶段　合并－初始化
         //第二阶段　设置超参数
-        Double minMetric =1.0;
-        Double minRC = 0.811;
-        Double minRI = 1.2;
+        Double minMetric = 1.0;
+        Double minRC = 0.65;
+        Double minRI = 1.0;
         Double minESC = 0.4;
-        Double alpha = 2.0;//RI*RC^alpha
+        Double alpha1 = 2.0;//RI*RC^alpha
+        Double alpha2 = 2.0;
         String sort_para = "RC_DOWN";
-        chameleonTool.setAlpha(alpha);
+        chameleonTool.setAlpha1(alpha1);
+        chameleonTool.setAlpha2(alpha2);
         //设置输出
 //        out2+= "_minRC_"+String.valueOf(minRC).substring(0,3)+"_minRI_"+String.valueOf(minRI).substring(0,3)+"_minMetirc_"+
 //                String.valueOf(minMetric).substring(0,3)+"_step2.txt";
@@ -134,7 +136,8 @@ public class Chameleon4 {
             if(has_point.isEmpty()){
                 size += new_cluster.getPointSize();
                 new_cluster.setSEC(threshold);
-                new_cluster.setAlpha(alpha);
+                new_cluster.setAlpha1(alpha1);
+                new_cluster.setAlpha2(alpha2);
                 clusters_set.add(new_cluster);
                 break;
             }
@@ -161,7 +164,8 @@ public class Chameleon4 {
                 }
             }
             new_cluster.setSEC(threshold);
-            new_cluster.setAlpha(alpha);
+            new_cluster.setAlpha1(alpha1);
+            new_cluster.setAlpha2(alpha2);
 
             System.out.println(new_cluster.isIs_merged());
             System.out.println(new_cluster.getEC());
@@ -232,7 +236,7 @@ public class Chameleon4 {
                 Double ESC = pair_sec.getFirst()/pair_sec.getSecond();
                 if(tmp.isIs_merged()){
                     if(cluster.isIs_merged()){
-                        if(opt > max_opt && RC>max_RC && ESC >minESC && RC >minRC){
+                        if(opt > max_opt && ESC >minESC && RC >minRC){
                             max_opt = opt;
                             max_cluster = tmp;
                             max_RC = RC;
@@ -357,39 +361,57 @@ public class Chameleon4 {
         Iterator<Cluster> clusterIterator2 = result.iterator();
 
         boolean log2_flag = false;
-        while(clusterIterator2.hasNext()){
+        int max_cluster_pot = 0;
+        while(clusterIterator2.hasNext()) {
             Cluster cluster2 = clusterIterator2.next();
-            ArrayList<Integer> points = cluster2.getPoints();
-            if(points.size()>70){
-                log2_flag = true;
-                log2.println("------------------------------------------------------------------------------");
+            if(max_cluster_pot < cluster2.getPointSize())
+                max_cluster_pot = cluster2.getPointSize();
+        }
+        for(int i = max_cluster_pot;i>=1;i--){
+            clusterIterator2 = result.iterator();
+            while(clusterIterator2.hasNext()) {
+                Cluster cluster2 = clusterIterator2.next();
+                if(i!=cluster2.getPointSize()){
+                    continue;
+                }
+                ArrayList<Integer> points = cluster2.getPoints();
+                if(points.size()>30){
+                    log2_flag = true;
+                    log2.println("------------------------------------------------------------------------------");
+                }
+                if(points.size()>70){
+                    log2_flag = true;
+                    log2.println("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
+                }
+                pw2.print("\n");
+                pw2.print("opt+"+cluster2.getOpt()+"\t");
+                pw2.print("RC++"+cluster2.getRC()+"\t");
+                pw2.print("RI++"+cluster2.getRI()+"\n");
+                pw2.print("mopt"+cluster2.getMaxOpt()+"\t");
+                pw2.print("mRC+"+cluster2.getMaxRC()+"\t");
+                pw2.print("mRI+"+cluster2.getMaxRI()+"\n");
+                pw2.print("SEC+"+cluster2.getSEC()+"\n");
+                for(Integer point:points){
+                    if(log2_flag)
+                        log2.print(s_f_map.get(i_s_map.get(point))+"\t");
+                    pw2.print(s_f_map.get(i_s_map.get(point))+"\t");
+                }
+                if(log2_flag) log2.print("\n");
+                pw2.print("\n");
+                for(Integer point:points){
+                    if(log2_flag)
+                        log2.print(i_s_map.get(point)+"\t");
+                    pw2.print(i_s_map.get(point)+"\t");
+                }
+                if(log2_flag) log2.print("\n");
+                pw2.print("\n");
+                log2_flag =false;
             }
-            pw2.print("\n");
-            pw2.print("opt+"+cluster2.getOpt()+"\t");
-            pw2.print("RC++"+cluster2.getRC()+"\t");
-            pw2.print("RI++"+cluster2.getRI()+"\n");
-            pw2.print("mopt"+cluster2.getMaxOpt()+"\t");
-            pw2.print("mRC+"+cluster2.getMaxRC()+"\t");
-            pw2.print("mRI+"+cluster2.getMaxRI()+"\n");
-            pw2.print("SEC+"+cluster2.getSEC()+"\n");
-            for(Integer point:points){
-                if(log2_flag)
-                    log2.print(s_f_map.get(i_s_map.get(point))+"\t");
-                pw2.print(s_f_map.get(i_s_map.get(point))+"\t");
-            }
-            if(log2_flag) log2.print("\n");
-            pw2.print("\n");
-            for(Integer point:points){
-                if(log2_flag)
-                    log2.print(i_s_map.get(point)+"\t");
-                pw2.print(i_s_map.get(point)+"\t");
-            }
-            if(log2_flag) log2.print("\n");
-            pw2.print("\n");
-            log2_flag =false;
         }
         log.flush();
         log.close();
+        log2.flush();
+        log2.close();
         pw.flush();
         pw.close();
         pw2.flush();
@@ -411,7 +433,7 @@ class ComparetorERC4 implements Comparator {
         Double s2_pre = s2.getRC();//;
 //        Double s1_pre = s1.getOpt();
 //        Double s2_pre = s2.getOpt();//;
-        if(s1_pre>s2_pre)
+        if(s1_pre>s2_pre)//UP exchange
             return 1;
         else
             return -1;

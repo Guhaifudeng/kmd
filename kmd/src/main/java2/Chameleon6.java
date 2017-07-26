@@ -13,7 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Created by yishuihan on 17-7-3.
  */
-public class Chameleon3 {
+public class Chameleon6 {
     public static void main(String[] args) throws Exception{
         String file = "";
         String label_file = "";
@@ -70,7 +70,7 @@ public class Chameleon3 {
         //引入sent top_n map
         //设置超参数
         //k=60
-        Integer knn =150;
+        Integer knn =100;
         loadData.buildSentTopNMatMap(topN_file, s_i_map,knn);
         ConcurrentHashMap<Integer, HashMap <Integer, Double>> sparse_mat = loadData.getSparseMat();
         //System.out.println(s_i_map.size());
@@ -84,7 +84,7 @@ public class Chameleon3 {
         chameleonTool.setKnn(knn);
         //第一阶段 构建最小簇－初始化
         //第一阶段　设置超参数
-        Double threshold1 = 0.8;
+        Double threshold1 = 0.95;
         Double threshold2 = 0.65;
         Double miss_value = -1.0;
         Integer min_cluster_max_num = 2;
@@ -96,15 +96,12 @@ public class Chameleon3 {
         //组件
         HashSet<Cluster> clusters_set = new HashSet <>();
         Queue<Integer> has_point = new PriorityQueue <>();
-        ComparetorPair comparetorPair = new ComparetorPair();
-        Queue<ClusterPair> clusters_priQueue = new PriorityQueue <>(10000,comparetorPair);
-
         has_point.addAll(set_s);//加入全部点索引
         HashSet<Integer> point_flag = new HashSet<>();
         //第二阶段　合并－初始化
         //第二阶段　设置超参数
         Double minMetric = 0.0;
-        Double minRC = 0.7;
+        Double minRC = 0.4;
         Double minRI = 0.0;
         Double alpha1 = 1.0;//RI^alph1 * RC^alpha2
         Double alpha2 = 2.0; //RI^alph1 * RC^alph2
@@ -224,218 +221,62 @@ public class Chameleon3 {
         }
         System.out.println("output step one finished");
 
-        HashMap<Cluster,ArrayList<ClusterPair>> c_f_map = new HashMap<>();
-        int count = 0;
-        //第二阶段　合并－运行
-
-        int i=0;
-        int j=0;
-        //初始化
-        mt.mm();
-        for(Cluster c1:clusters_set){
-            j=0;
-            for(Cluster c2:clusters_set){
-                if(i<=j){break;}
-
-                Double RC = chameleonTool.calRC(c1,c2);
-                Double RI = chameleonTool.calRI(c1,c2);
-                Double SEC = chameleonTool.calSEC(c1,c2,true);
-                Double opt = chameleonTool.calFunctionDefinedOptimization(RC,RI);
 
 
-                {
-                    c1.setGlobal_MaxOpt(opt);
-                    c2.setGlobal_MaxOpt(opt);
-                    c1.setGlobal_MaxRC(RC);
-                    c2.setGlobal_MaxRC(RC);
-                    c1.setGlobal_MaxRI(RI);
-                    c2.setGlobal_MaxRI(RI);
-                }
-                if(RC>=0.3){
-                    ClusterPair tmp_pair = new ClusterPair(c1,c2);
-                    tmp_pair.setOpt(opt);
-                    tmp_pair.setRC(RC);
-                    tmp_pair.setRI(RI);
-                    tmp_pair.setSEC(SEC);
-                    if(c_f_map.containsKey(c1)){
-                        ArrayList<ClusterPair> pairs = c_f_map.get(c1);
-                        pairs.add(tmp_pair);
-                    }else {
-
-                        ArrayList<ClusterPair> pairs = new ArrayList <>();
-                        pairs.add(tmp_pair);
-                        c_f_map.put(c1,pairs);
-                    }
-                    if(c_f_map.containsKey(c2)){
-                        ArrayList<ClusterPair> pairs = c_f_map.get(c2);
-                        pairs.add(tmp_pair);
-                    }else {
-
-                        ArrayList<ClusterPair> pairs = new ArrayList <>();
-                        pairs.add(tmp_pair);
-                        c_f_map.put(c2,pairs);
-                    }
-                    clusters_priQueue.add(tmp_pair);
-                }
-
-                j++;
-            }
-            if(i % 1000 == 0)
-                System.out.println(i+"-"+clusters_priQueue.size());
-            i++;
-        }
-        System.out.println("build priorityQueue:"+clusters_set.size()+"-"+clusters_priQueue.size() );
-        //rm keys,then out
-        mt.mm();
-        clusters_set.removeAll(c_f_map.keySet());
-        for(Cluster cluster: clusters_set){
-            cluster_num++;
-
-            ArrayList<Integer> points = cluster.getPoints();
-            ArrayList<Pair<Integer,Integer>>  opt_sizes = cluster.getPot_size_list();
-            pw2.print("\n");
-            pw2.println(points.size()+"-"+opt_sizes.size()+"-----------------------------------------------------------------------------");
-            int size_sum = 0;
-            for(i = 0;i<opt_sizes.size();i++){
-                size_sum += opt_sizes.get(i).getSecond();
-                pw2.print(i_s_map.get(opt_sizes.get(i).getFirst())+":"+opt_sizes.get(i).getSecond()+":"+size_sum+"\t");
-            }
-            pw2.print("\n");
-            pw2.print("opt+ "+cluster.getOpt()+"\t");
-            pw2.print("RC++ "+cluster.getRC()+"\t");
-            pw2.print("RI++ "+cluster.getRI()+"\n");
-            pw2.print("mopt "+cluster.getGlobal_MaxOpt()+"\t");
-            pw2.print("mRC+ "+cluster.getGlobal_MaxRC()+"\t");
-            pw2.print("mRI+ "+cluster.getGlobal_MaxRI()+"\n");
-            pw2.println(cluster.getMergeEdgeNum());
-            pw2.print("SEC+ "+cluster.getSEC()+"\n");
-            for(Integer point:points){
-
-                pw2.print(s_f_map.get(i_s_map.get(point))+"\t");
-            }
-
-            pw2.print("\n");
-            for(Integer point:points){
-
-                pw2.print(i_s_map.get(point)+"\t");
-            }
-
-            pw2.print("\n\n");
-        }
-        //add keys
-        clusters_set.clear();
-        clusters_set.addAll(c_f_map.keySet());
-        System.out.println("delete not uesed:"+clusters_set.size()+"-"+clusters_priQueue.size() );
-        pw2.println("-----------------------------+++++++++++++++");
         //heap
         mt.mm();
-        while(!clusters_set.isEmpty() && !clusters_priQueue.isEmpty()){
-            ClusterPair pair = clusters_priQueue.poll();
-            Cluster c1 = pair.getC1();
-            Cluster c2 = pair.getC2();
-            if(c1.getPointSize() < c2.getPointSize()){
-                Cluster tmp_c = c1;
-                c1 = c2;
-                c2 = tmp_c;
-            }
-            Double opt = pair.getOpt();
-            Double SEC = pair.getSEC();
-            Double RC = pair.getRC();
-            Double RI = pair.getRI();
-            //merge
-//            if(RC>minRC && c1.getPointSize()/c2.getPointSize() > 10){
-//                RI = c1.getRI();
-//            }else if(RC>minRC && c1.getPointSize()/c2.getPointSize() >5){
-//                RI = c1.getRI()*0.5 + RI*0.5;
-//            }else if(RC>minRC && c1.getPointSize()/c2.getPointSize() >3){
-//                RI = c1.getRI()*0.3 + RI*0.7;
-//            }
 
-            {
-                log.println(i_s_map.get(c1.getPoints().get(0))+"--"+i_s_map.get(c2.getPoints().get(0)));
-                log.println(c1.getPointSize()+"--"+c2.getPointSize());
-                log.println(c1.isIs_merged()+"--"+c2.isIs_merged());
-                log.println(SEC);
-                log.println("2Opt-"+c1.getOpt()+"\t"+c2.getOpt());
-                log.println("2RC+-"+c1.getRC()+"\t"+c2.getRC());
-                log.println("2RI+-"+c1.getRI()+"\t"+c2.getRI());
-                //###
-                //c1.addToPotSizeList(c2.getPoints().get(0),c2.getPointSize());
-                MergeMess mergeMess = new MergeMess();
-                mergeMess.setE_first(c2.getPoints().get(0));
-                mergeMess.setE_size(c2.getPointSize());
-                mergeMess.setRC(RC);
-                mergeMess.setRI(RI);
-                c1.addToMergeCluList(mergeMess);
-
-                c1 = chameleonTool.mergeTwoClustersToOne(c1,c2,opt,RI,RC);
-                if(c1.getPointSize()>200){
-                    System.out.println(i_s_map.get(c1.getPoints().get(0)) +"\t"+c1.getPointSize());
-                }
-                log.println(c1.getMergeEdgeNum());
-                log.println("-opt+"+c1.getOpt());
-                log.println("-RC++"+c1.getRC());
-                log.println("-RI++"+c1.getRI());
-                log.println("");
+        while(!clusters_set.isEmpty()){
+            Iterator<Cluster> iterator = clusters_set.iterator();
+            Cluster now = null;
+            if(iterator.hasNext()){
+                now = iterator.next();
+            }else {
+                break;
             }
-            //update opt-move
-            ArrayList<ClusterPair> pairs1 = c_f_map.get(c1);
-            ArrayList<ClusterPair> pairs2 = c_f_map.get(c2);
-
-            for(ClusterPair cl1:pairs1){
-                clusters_priQueue.remove(cl1);
-            }
-            for(ClusterPair cl2:pairs2){
-                clusters_priQueue.remove(cl2);
-            }
-            pairs1.clear();
-            pairs2.clear();
-            //updata opt-add
-
-            clusters_set.remove(c2);
-            clusters_set.remove(c1);
             int err_num = 0;
             Double max_Opt = Double.MIN_VALUE;
             Double max_RC = Double.MIN_VALUE;
             Double max_RI = Double.MIN_VALUE;
             Integer max_NearId = -1;
-            for(Cluster cluster:clusters_set){
-                Double t_RC = chameleonTool.calRC(c1,cluster);
-                Double t_RI = chameleonTool.calRI(c1,cluster);
-                Double t_SEC = chameleonTool.calSEC(c1,cluster,true);
+            Cluster merge_to = null;
+            while (iterator.hasNext()){
+                Cluster c1 = iterator.next();
+                Double t_RC = chameleonTool.calRC(c1,now);
+                Double t_RI = chameleonTool.calRI(c1,now);
+                Double t_SEC = chameleonTool.calSEC(c1,now,true);
                 Double t_opt = chameleonTool.calFunctionDefinedOptimization(t_RI,t_RC);
 
                 {
-                    if(t_opt>max_Opt && t_RC >max_RC) {
+                    if(t_opt>max_Opt &&  t_RC> max_RC) {
                         max_Opt = t_opt;
                         max_RC = t_RC;
                         max_RI = t_RI;
-                        max_NearId = cluster.getPoints().get(0);
+                        max_NearId = c1.getPoints().get(0);
+                        merge_to = c1;
                     }
                 }
-                if(t_opt>minMetric && t_RC>minRC){
-                    ClusterPair tmp_pair = new ClusterPair(c1,cluster);
-                    tmp_pair.setOpt(t_opt);
-                    tmp_pair.setRC(t_RC);
-                    tmp_pair.setRI(t_RI);
-                    tmp_pair.setSEC(t_SEC);
-                    ArrayList<ClusterPair> tmp_pairs1 = c_f_map.get(c1);
-                    ArrayList<ClusterPair> tmp_pairs2 = c_f_map.get(cluster);
-                    tmp_pairs1.add(tmp_pair);
-                    tmp_pairs2.add(tmp_pair);
-
-                    clusters_priQueue.add(tmp_pair);
-                }else {
-                    err_num++;
-                }
-
-
             }
-            c1.setMaxOpt(max_Opt);
-            c1.setMaxRC(max_RC);
-            c1.setMaxRI(max_RI);
-            c1.setMaxNearID(max_NearId);
-            if(err_num == clusters_set.size()){
+
+            if(max_Opt > minMetric && max_RC > minRC){
+                if(now.getPointSize() < merge_to.getPointSize()){
+                    Cluster tmp_c = merge_to;
+                    merge_to = now ;
+                    now = tmp_c;
+                }
+                MergeMess mergeMess = new MergeMess();
+                mergeMess.setE_first(merge_to.getPoints().get(0));
+                mergeMess.setE_size(merge_to.getPointSize());
+                mergeMess.setRC(max_RC);
+                mergeMess.setRI(max_RI);
+                now.addToMergeCluList(mergeMess);
+                now = chameleonTool.mergeTwoClustersToOne(now,merge_to,max_Opt,max_RI,max_RC);
+                clusters_set.remove(merge_to);
+
+
+            }else {
+                clusters_set.remove(now);
+                Cluster c1 = now;
                 cluster_num++;
                 boolean log2_flag =false;
                 boolean log3_flag = false;
@@ -446,7 +287,7 @@ public class Chameleon3 {
                     log2_flag = true;
                     log2.println(points.size()+"-"+mergeMesses.size()+"-"+i_s_map.get(c1.getMaxNearID())+"----------------------------------------------------------------------------");
                     int size_sum = 0;
-                    for(i = 0;i<mergeMesses.size();i++){
+                    for(int i = 0;i<mergeMesses.size();i++){
                         size_sum += mergeMesses.get(i).getE_size();
                         log2.print(String.format("%s:%.2f:%.2f:%s:%s:\t",i_s_map.get(mergeMesses.get(i).getE_first()),mergeMesses.get(i).getRC(),mergeMesses.get(i).getRI(),mergeMesses.get(i).getE_size(),size_sum));
                     }
@@ -458,7 +299,7 @@ public class Chameleon3 {
                     log3_flag = true;
                     log3.println(points.size()+"-"+mergeMesses.size()+"-"+i_s_map.get(c1.getMaxNearID())+"----------------------------------------------------------------------------");
                     int size_sum = 0;
-                    for(i = 0;i<mergeMesses.size();i++){
+                    for(int i = 0;i<mergeMesses.size();i++){
                         size_sum += mergeMesses.get(i).getE_size();
                         log3.print(String.format("%s:%.2f:%.2f:%s:%s:\t",i_s_map.get(mergeMesses.get(i).getE_first()),mergeMesses.get(i).getRC(),mergeMesses.get(i).getRI(),mergeMesses.get(i).getE_size(),size_sum));
                     }
@@ -479,7 +320,7 @@ public class Chameleon3 {
                 pw2.print("\n");
                 pw2.println(points.size()+"-"+mergeMesses.size()+"-"+i_s_map.get(c1.getMaxNearID())+"----------------------------------------------------------------------------");
                 int size_sum = 0;
-                for(i = 0;i<mergeMesses.size();i++){
+                for(int i = 0;i<mergeMesses.size();i++){
                     size_sum += mergeMesses.get(i).getE_size();
                     pw2.print(String.format("%s:%.2f:%.2f:%s:%s:\t",i_s_map.get(mergeMesses.get(i).getE_first()),mergeMesses.get(i).getRC(),mergeMesses.get(i).getRI(),mergeMesses.get(i).getE_size(),size_sum));
                 }
@@ -517,85 +358,23 @@ public class Chameleon3 {
                     log3.print("\n");
                 pw2.print("\n");
 
-            }else {
-                c1.setMaxOpt(Double.MIN_VALUE);
-                c1.setMaxRI(Double.MIN_VALUE);
-                c1.setMaxRC(Double.MIN_VALUE);
-                clusters_set.add(c1);
             }
+
+
             if(clusters_set.size() % 1000==0){
-                System.out.println("-"+clusters_set.size()+"-"+clusters_priQueue.size());
+                System.out.println("--"+clusters_set.size()+"--");
 
                 pw2.flush();
                 log.flush();
                 log2.flush();
                 log3.flush();
+
             }
 
         }
         mt.mm();
-        System.out.println("second step finished"+"-"+clusters_set.size()+"-"+clusters_priQueue.size());
-        //第二阶段结果
-        Iterator<Cluster> clusterIterator2 = clusters_set.iterator();
-        pw2.println("-----------------------------++++++++++++++++++++++++++++++");
-        while(clusterIterator2.hasNext()){
-            cluster_num++;
-            Cluster cluster2 = clusterIterator2.next();
-            ArrayList<Integer> points = cluster2.getPoints();
-            //ArrayList<Pair<Integer,Integer>>  opt_sizes = cluster2.getPot_size_list();
-            ArrayList<MergeMess> mergeMesses = cluster2.getMerge_clu_list();
-            boolean log2_flag = false;
-            if(points.size()>=8){
-                log2_flag = true;
-                if(cluster2.getMaxNearID() ==-1)
-                    log2.println(points.size()+"-"+mergeMesses.size()+"-"+"+++++++"+"----------------------------------------------------------------------------");
-                else
-                    log2.println(points.size()+"-"+mergeMesses.size()+"-"+i_s_map.get(cluster2.getMaxNearID())+"----------------------------------------------------------------------------");
-                int size_sum = 0;
-                for(i = 0;i<mergeMesses.size();i++){
-                    size_sum += mergeMesses.get(i).getE_size();
-                    log2.print(String.format("%s:%.2f:%.2f:%s:%s:\t",i_s_map.get(mergeMesses.get(i).getE_first()),mergeMesses.get(i).getRC(),mergeMesses.get(i).getRI(),mergeMesses.get(i).getE_size(),size_sum));
-                }
-                log2.print("\n");
+        System.out.println("second step finished"+"-"+clusters_set.size()+"--");
 
-
-
-            }
-            pw2.print("\n");
-            if(cluster2.getMaxNearID() == -1)
-                pw2.println(points.size()+"-"+mergeMesses.size()+"-"+"+++++++"+"----------------------------------------------------------------------------");
-            else
-                pw2.println(points.size()+"-"+mergeMesses.size()+"-"+i_s_map.get(cluster2.getMaxNearID())+"----------------------------------------------------------------------------");
-            int size_sum = 0;
-            for(i = 0;i<mergeMesses.size();i++){
-                size_sum += mergeMesses.get(i).getE_size();
-                size_sum += mergeMesses.get(i).getE_size();
-                pw2.print(String.format("%s:%.2f:%.2f:%s:%s:\t",i_s_map.get(mergeMesses.get(i).getE_first()),mergeMesses.get(i).getRC(),mergeMesses.get(i).getRI(),mergeMesses.get(i).getE_size(),size_sum));
-            }
-            pw2.print("\n");
-            pw2.print("opt+"+cluster2.getOpt()+"\t");
-            pw2.print("RC++"+cluster2.getRC()+"\t");
-            pw2.print("RI++"+cluster2.getRI()+"\n");
-            pw2.print("mopt"+cluster2.getMaxOpt()+"\t");
-            pw2.print("mRC+"+cluster2.getMaxRC()+"\t");
-            pw2.print("mRI+"+cluster2.getMaxRI()+"\n");
-            pw2.println(cluster2.getMergeEdgeNum());
-            pw2.print("SEC+"+cluster2.getSEC()+"\n");
-            for(Integer point:points){
-                if(log2_flag)
-                    log2.print(s_f_map.get(i_s_map.get(point))+"\t");
-                pw2.print(s_f_map.get(i_s_map.get(point))+"\t");
-            }
-            if(log2_flag) log2.print("\n");
-            pw2.print("\n");
-            for(Integer point:points){
-                if(log2_flag)
-                    log2.print(i_s_map.get(point)+"\t");
-                pw2.print(i_s_map.get(point)+"\t");
-            }
-            if(log2_flag) log2.print("\n");
-            pw2.print("\n");
-        }
         log.flush();
         log.close();
         pw.flush();
@@ -611,81 +390,5 @@ public class Chameleon3 {
         mt.dd();
     }
 
-
-}
-class ClusterPair {
-    Cluster c1 = null;
-    Cluster c2 = null;
-    Double opt = Double.MIN_VALUE;
-    Double RC = Double.MIN_VALUE;
-    Double RI = Double.MIN_VALUE;
-    Double SEC = Double.MIN_VALUE;
-
-    public Double getRC() {
-        return RC;
-    }
-
-    public void setRC(Double RC) {
-        this.RC = RC;
-    }
-
-    public Double getRI() {
-        return RI;
-    }
-
-    public void setRI(Double RI) {
-        this.RI = RI;
-    }
-
-    public Double getSEC() {
-        return SEC;
-    }
-
-    public void setSEC(Double SEC) {
-        this.SEC = SEC;
-    }
-
-    ClusterPair(Cluster c1, Cluster c2){
-        this.c1 = c1;
-        this.c2 = c2;
-    }
-    public Cluster getC1() {
-        return c1;
-    }
-
-    public void setC1(Cluster c1) {
-        this.c1 = c1;
-    }
-
-    public Cluster getC2() {
-        return c2;
-    }
-
-    public void setC2(Cluster c2) {
-        this.c2 = c2;
-    }
-
-    public Double getOpt() {
-        return opt;
-    }
-
-    public void setOpt(Double opt) {
-        this.opt = opt;
-    }
-}
-class ComparetorPair implements Comparator{
-    public int compare(Object o1, Object o2) {
-        ClusterPair s1=(ClusterPair) o1;
-        ClusterPair s2=(ClusterPair)o2;
-
-        Double s1_pre = s1.getOpt();
-        Double s2_pre = s2.getOpt();//;
-//        Double s1_pre = s1.getSEC();
-//        Double s2_pre = s2.getSEC();//;
-        if(s1_pre<s2_pre)//DOWN exchange
-            return 1;
-        else
-            return -1;
-    }
 
 }
