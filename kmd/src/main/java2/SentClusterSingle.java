@@ -83,7 +83,7 @@ public class SentClusterSingle {
         chameleonTool.setKnn(knn);
         //第一阶段 构建最小簇－初始化
         //第一阶段　设置超参数
-        Double threshold1 = 0.1;
+        Double threshold1 = 1.0;
         Double threshold2 = 0.6;
         Double miss_value = -1.0;
         Integer min_cluster_max_num = 2;

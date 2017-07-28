@@ -74,7 +74,7 @@ public class Chameleon5 {
         //引入sent top_n map
         //设置超参数
         //k=60
-        Integer knn =150;
+        Integer knn =100;
         loadData.buildSentTopNMatMap(topN_file, s_i_map,knn);
         ConcurrentHashMap<Integer, HashMap <Integer, Double>> sparse_mat = loadData.getSparseMat();
         //System.out.println(s_i_map.size());
